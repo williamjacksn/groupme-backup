@@ -1,10 +1,12 @@
-import argparse
 import datetime
 import decimal
 import json
+import logging
+import os
 import pathlib
 import requests
 import sqlite3
+import sys
 
 from typing import Any, Dict, Generator, Mapping, Optional
 
@@ -47,7 +49,7 @@ class Database:
 
     def migrate(self):
         if self.version < 1:
-            print('Migrating to version 1')
+            logging.debug('Migrating to version 1')
             sql = '''
                 create table emoji (
                     message_id integer,
@@ -112,7 +114,7 @@ class Database:
             self.ex(sql)
             self.add_version(1)
         if self.version < 2:
-            print('Migrating to version 2')
+            logging.debug('Migrating to version 2')
             sql = '''
                 create table autokicked_members (
                     message_id integer,
@@ -351,8 +353,8 @@ class Message:
                 elif type_ == 'autokicked_member':
                     self.add_autokicked_member(attachment['user_id'])
                 else:
-                    print(f'Unsupported attachment type: {type_!r}')
-                    print(json.dumps(data, indent=1, sort_keys=True))
+                    logging.warning(f'Unsupported attachment type: {type_!r}')
+                    logging.warning(json.dumps(data, indent=1, sort_keys=True))
 
     def save(self) -> 'Message':
         if self.find_by_id(self.id) is None:
@@ -392,34 +394,46 @@ class Message:
             'user_id': self.user_id
         }
         self._db.ex(sql, params)
-        print(f'Saved message {self.id}')
+        logging.info(f'Saved message {self.id}')
         return self
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-t', '--token')
-    parser.add_argument('-g', '--group-id')
-    parser.add_argument('-d', '--database')
-    return parser.parse_args()
+class Config:
+    _database: str
+    group_id: int
+    log_format: str
+    log_level: str
+    token: str
+
+    def __init__(self):
+        self._database = os.getenv('DATABASE')
+        self.group_id = os.getenv('GROUP_ID')
+        self.log_format = os.getenv('LOG_FORMAT', '%(levelname)s [%(name)s] %(message)s')
+        self.log_level = os.getenv('LOG_LEVEL', 'DEBUG')
+        self.token = os.getenv('TOKEN')
+
+    @property
+    def database(self) -> pathlib.Path:
+        return pathlib.Path(self._database).resolve()
 
 
 def main():
+    config = Config()
+    logging.basicConfig(format=config.log_format, level=config.log_level, stream=sys.stdout)
     prep_sqlite3()
-    args = parse_args()
-    db = Database(pathlib.Path(args.database).resolve())
+    db = Database(config.database)
     forward = True
     last_id = Message(db).find_last_id()
     if last_id is None:
-        print('Starting at the last message and saving all previous messages')
+        logging.info('Starting at the last message and saving all previous messages')
         forward = False
     else:
-        print(f'Looking for messages after {last_id}')
-    params = {'token': args.token, 'limit': 100}
+        logging.info(f'Looking for messages after {last_id}')
+    params = {'token': config.token, 'limit': 100}
     while True:
-        data = requests.get(f'https://api.groupme.com/v3/groups/{args.group_id}/messages', params=params)
+        data = requests.get(f'https://api.groupme.com/v3/groups/{config.group_id}/messages', params=params)
         if data.status_code not in (200,):
-            print(data.text)
+            logging.error(data.text)
             break
         messages = data.json()['response']['messages']
         if len(messages) < 1:
