@@ -1,7 +1,5 @@
 FROM python:3.7.0-alpine3.8
 
-LABEL version="2.0.1"
-
 COPY requirements.txt /requirements.txt
 
 RUN /sbin/apk add --no-cache su-exec \
@@ -16,3 +14,7 @@ ENV PYTHONUNBUFFERED 1
 ENV USER_SPEC 1000:1000
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
+
+LABEL maintainer=william@subtlecoolness.com \
+      org.label-schema.schema-version=1.0 \
+      org.label-schema.version=2.0.2
