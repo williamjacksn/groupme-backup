@@ -3,7 +3,7 @@ FROM python:3.7.0-alpine3.8
 COPY requirements.txt /requirements.txt
 
 RUN /sbin/apk add --no-cache su-exec \
- && /usr/local/bin/pip install --no-cache-dir --upgrade setuptools wheel \
+ && /usr/local/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
  && /usr/local/bin/pip install --no-cache-dir --requirement /requirements.txt
 
 COPY groupme_backup.py /groupme_backup.py
