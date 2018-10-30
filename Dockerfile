@@ -16,4 +16,4 @@ ENTRYPOINT ["/docker-entrypoint.sh"]
 
 LABEL maintainer=william@subtlecoolness.com \
       org.label-schema.schema-version=1.0 \
-      org.label-schema.version=2.0.2
+      org.label-schema.version=2.0.3
