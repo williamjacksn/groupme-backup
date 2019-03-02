@@ -416,10 +416,24 @@ class Config:
     def database(self) -> pathlib.Path:
         return pathlib.Path(self._database).resolve()
 
+    @property
+    def version(self) -> str:
+        """Read version from Dockerfile"""
+        dockerfile = pathlib.Path(__file__).resolve().parent / 'Dockerfile'
+        with open(dockerfile) as f:
+            for line in f:
+                if 'org.label-schema.version' in line:
+                    return line.strip().split('=', maxsplit=1)[1]
+        return 'unknown'
+
 
 def main():
     config = Config()
-    logging.basicConfig(format=config.log_format, level=config.log_level, stream=sys.stdout)
+    logging.basicConfig(format=config.log_format, level='DEBUG', stream=sys.stdout)
+    logging.debug(f'groupme-backup {config.version}')
+    logging.debug(f'Changing log level to {config.log_level}')
+    logging.getLogger().setLevel(config.log_level)
+
     prep_sqlite3()
     db = Database(config.database)
     forward = True
