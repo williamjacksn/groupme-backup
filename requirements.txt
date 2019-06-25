@@ -1,2 +1,2 @@
-fort==0.0.5
+fort==0.0.6
 requests==2.22.0
