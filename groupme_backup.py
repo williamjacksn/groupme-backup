@@ -1,51 +1,21 @@
 import datetime
 import decimal
+import fort
 import json
 import logging
 import os
 import pathlib
 import requests
-import sqlite3
 import sys
 
-from typing import Any, Dict, Generator, Mapping, Optional
+from typing import Dict, Optional
 
 
-def prep_sqlite3():
-    def convert_bool(b: bytes) -> bool:
-        return b == b'True'
-
-    def convert_decimal(b: bytes) -> decimal.Decimal:
-        return decimal.Decimal(b.decode())
-
-    sqlite3.register_adapter(bool, str)
-    sqlite3.register_converter('bool', convert_bool)
-    sqlite3.register_adapter(decimal.Decimal, str)
-    sqlite3.register_converter('decimal', convert_decimal)
-
-
-class Database:
-    def __init__(self, path: pathlib.Path):
-        self.path = path
-        self.cnx = sqlite3.connect(str(path), detect_types=sqlite3.PARSE_DECLTYPES)
-        self.cnx.isolation_level = None
-        self.cnx.row_factory = sqlite3.Row
-        self.migrate()
-
-    def _q(self, sql: str, params: Mapping = None) -> Generator[sqlite3.Row, None, None]:
-        if params is None:
-            params = {}
-        yield from self.cnx.execute(sql, params)
-
+class Database(fort.SQLiteDatabase):
     def add_version(self, version: int):
         sql = 'insert into schema_versions (schema_version, migration_date) values (:version, :timestamp)'
         params = {'version': version, 'timestamp': datetime.datetime.utcnow()}
-        self.ex(sql, params)
-
-    def ex(self, sql: str, params: Mapping = None) -> None:
-        if params is None:
-            params = {}
-        self.cnx.execute(sql, params)
+        self.u(sql, params)
 
     def migrate(self):
         if self.version < 1:
@@ -58,21 +28,21 @@ class Database:
                     offset integer
                 )
             '''
-            self.ex(sql)
+            self.u(sql)
             sql = '''
                 create table files (
                     message_id integer,
                     file_id text
                 )
             '''
-            self.ex(sql)
+            self.u(sql)
             sql = '''
                 create table images (
                     message_id integer,
                     url text
                 )
             '''
-            self.ex(sql)
+            self.u(sql)
             sql = '''
                 create table mentions (
                     message_id integer,
@@ -81,7 +51,7 @@ class Database:
                     length integer
                 )
             '''
-            self.ex(sql)
+            self.u(sql)
             sql = '''
                 create table messages (
                     avatar_url text,
@@ -96,7 +66,7 @@ class Database:
                     user_id text
                 )
             '''
-            self.ex(sql)
+            self.u(sql)
             sql = '''
                 create table videos (
                     message_id integer,
@@ -104,14 +74,14 @@ class Database:
                     url text
                 )
             '''
-            self.ex(sql)
+            self.u(sql)
             sql = '''
                 create table schema_versions (
                     schema_version integer,
                     migration_date timestamp
                 )
             '''
-            self.ex(sql)
+            self.u(sql)
             self.add_version(1)
         if self.version < 2:
             logging.debug('Migrating to version 2')
@@ -121,7 +91,7 @@ class Database:
                     user_id text
                 )
             '''
-            self.ex(sql)
+            self.u(sql)
             sql = '''
                 create table events (
                     message_id integer,
@@ -129,7 +99,7 @@ class Database:
                     view text
                 )
             '''
-            self.ex(sql)
+            self.u(sql)
             sql = '''
                 create table locations (
                     message_id integer,
@@ -138,19 +108,8 @@ class Database:
                     name text
                 )
             '''
-            self.ex(sql)
+            self.u(sql)
             self.add_version(2)
-
-    def q_one(self, sql: str, params: Mapping = None) -> Optional[sqlite3.Row]:
-        for row in self._q(sql, params):
-            return row
-        return None
-
-    def q_val(self, sql: str, params: Mapping = None) -> Optional[Any]:
-        row = self.q_one(sql, params)
-        if row is None:
-            return None
-        return row[0]
 
     @property
     def version(self) -> int:
@@ -165,16 +124,16 @@ class Database:
 class Message:
     def __init__(self, db: Database):
         self._db = db
-        self.avatar_url: str = None
-        self.created_at: datetime.datetime = None
-        self.id: int = None
-        self.name: str = None
-        self.sender_id: str = None
-        self.sender_type: str = None
-        self.source_guid: str = None
-        self.system: bool = None
-        self.message_text: str = None
-        self.user_id: str = None
+        self.avatar_url: Optional[str] = None
+        self.created_at: Optional[datetime.datetime] = None
+        self.id: Optional[int] = None
+        self.name: Optional[str] = None
+        self.sender_id: Optional[str] = None
+        self.sender_type: Optional[str] = None
+        self.source_guid: Optional[str] = None
+        self.system: Optional[bool] = None
+        self.message_text: Optional[str] = None
+        self.user_id: Optional[str] = None
 
     def add_autokicked_member(self, user_id: str) -> None:
         if self.id is None or self.find_by_id(self.id) is None:
@@ -187,7 +146,7 @@ class Message:
         row = self._db.q_one(sql, params)
         if row is None:
             sql = 'insert into autokicked_members (message_id, user_id) values (:message_id, :user_id)'
-            self._db.ex(sql, params)
+            self._db.u(sql, params)
 
     def add_emoji(self, placeholder: str, pack_id: int, offset: int):
         if self.id is None or self.find_by_id(self.id) is None:
@@ -208,7 +167,7 @@ class Message:
                 insert into emoji (message_id, placeholder, pack_id, offset)
                 values (:message_id, :placeholder, :pack_id, :offset)
             '''
-            self._db.ex(sql, params)
+            self._db.u(sql, params)
 
     def add_event(self, event_id: str, view: str) -> None:
         if self.id is None or self.find_by_id(self.id) is None:
@@ -222,7 +181,7 @@ class Message:
         row = self._db.q_one(sql, params)
         if row is None:
             sql = 'insert into events (message_id, event_id, view) values (:message_id, :event_id, :view)'
-            self._db.ex(sql, params)
+            self._db.u(sql, params)
 
     def add_file(self, file_id: str) -> None:
         if self.id is None or self.find_by_id(self.id) is None:
@@ -235,7 +194,7 @@ class Message:
         row = self._db.q_one(sql, params)
         if row is None:
             sql = 'insert into files (message_id, file_id) values (:message_id, :file_id)'
-            self._db.ex(sql, params)
+            self._db.u(sql, params)
 
     def add_image(self, url: str) -> None:
         if self.id is None or self.find_by_id(self.id) is None:
@@ -248,7 +207,7 @@ class Message:
         row = self._db.q_one(sql, params)
         if row is None:
             sql = 'insert into images (message_id, url) values (:message_id, :url)'
-            self._db.ex(sql, params)
+            self._db.u(sql, params)
 
     def add_location(self, lat: decimal.Decimal, lng: decimal.Decimal, name: str) -> None:
         if self.id is None or self.find_by_id(self.id) is None:
@@ -263,7 +222,7 @@ class Message:
         row = self._db.q_one(sql, params)
         if row is None:
             sql = 'insert into locations (message_id, lat, lng, name) values (:message_id, :lat, :lng, :name)'
-            self._db.ex(sql, params)
+            self._db.u(sql, params)
 
     def add_mention(self, user_id: int, location: int, length: int) -> None:
         if self.id is None or self.find_by_id(self.id) is None:
@@ -284,7 +243,7 @@ class Message:
                 insert into mentions (message_id, user_id, location, length)
                 values (:message_id, :user_id, :location, :length)
             '''
-            self._db.ex(sql, params)
+            self._db.u(sql, params)
 
     def add_video(self, preview_url: str, url: str) -> None:
         if self.id is None or self.find_by_id(self.id) is None:
@@ -298,7 +257,7 @@ class Message:
         row = self._db.q_one(sql, params)
         if row is None:
             sql = 'insert into videos (message_id, preview_url, url) values (:message_id, :preview_url, :url)'
-            self._db.ex(sql, params)
+            self._db.u(sql, params)
 
     def find_by_id(self, id_: int) -> Optional['Message']:
         sql = '''
@@ -393,7 +352,7 @@ class Message:
             'message_text': self.message_text,
             'user_id': self.user_id
         }
-        self._db.ex(sql, params)
+        self._db.u(sql, params)
         logging.info(f'Saved message {self.id}')
         return self
 
@@ -409,7 +368,7 @@ class Config:
         self._database = os.getenv('DATABASE')
         self.group_id = os.getenv('GROUP_ID')
         self.log_format = os.getenv('LOG_FORMAT', '%(levelname)s [%(name)s] %(message)s')
-        self.log_level = os.getenv('LOG_LEVEL', 'DEBUG')
+        self.log_level = os.getenv('LOG_LEVEL', 'INFO')
         self.token = os.getenv('TOKEN')
 
     @property
@@ -422,7 +381,7 @@ class Config:
         dockerfile = pathlib.Path(__file__).resolve().parent / 'Dockerfile'
         with open(dockerfile) as f:
             for line in f:
-                if 'org.label-schema.version' in line:
+                if 'org.opencontainers.image.version' in line:
                     return line.strip().split('=', maxsplit=1)[1]
         return 'unknown'
 
@@ -431,11 +390,12 @@ def main():
     config = Config()
     logging.basicConfig(format=config.log_format, level='DEBUG', stream=sys.stdout)
     logging.debug(f'groupme-backup {config.version}')
-    logging.debug(f'Changing log level to {config.log_level}')
+    if config.log_level != 'DEBUG':
+        logging.debug(f'Changing log level to {config.log_level}')
     logging.getLogger().setLevel(config.log_level)
 
-    prep_sqlite3()
     db = Database(config.database)
+    db.migrate()
     forward = True
     last_id = Message(db).find_last_id()
     if last_id is None:

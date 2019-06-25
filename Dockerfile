@@ -1,4 +1,4 @@
-FROM python:3.7.2-alpine3.9
+FROM python:3.7.3-alpine3.9
 
 COPY requirements.txt /groupme-backup/requirements.txt
 
@@ -10,9 +10,8 @@ RUN chmod +x /groupme-backup/docker-entrypoint.sh
 
 ENTRYPOINT ["/groupme-backup/docker-entrypoint.sh"]
 
-ENV PYTHONUNBUFFERED 1
-ENV USER_SPEC 1000:1000
+ENV PYTHONUNBUFFERED="1" \
+    USER_SPEC="1000:1000"
 
-LABEL maintainer=william@subtlecoolness.com \
-      org.label-schema.schema-version=1.0 \
-      org.label-schema.version=2.0.5
+LABEL org.opencontainers.image.authors="William Jackson <william@subtlecoolness.com>" \
+      org.opencontainers.image.version=2.0.5
