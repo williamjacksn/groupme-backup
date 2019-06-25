@@ -14,4 +14,4 @@ ENV PYTHONUNBUFFERED="1" \
     USER_SPEC="1000:1000"
 
 LABEL org.opencontainers.image.authors="William Jackson <william@subtlecoolness.com>" \
-      org.opencontainers.image.version=2.0.5
+      org.opencontainers.image.version=2.1.0
