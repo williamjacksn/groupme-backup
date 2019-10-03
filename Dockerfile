@@ -10,8 +10,9 @@ RUN chmod +x /groupme-backup/docker-entrypoint.sh
 
 ENTRYPOINT ["/groupme-backup/docker-entrypoint.sh"]
 
-ENV PYTHONUNBUFFERED="1" \
+ENV APP_VERSION="2.1.0" \
+    PYTHONUNBUFFERED="1" \
     USER_SPEC="1000:1000"
 
 LABEL org.opencontainers.image.authors="William Jackson <william@subtlecoolness.com>" \
-      org.opencontainers.image.version=2.1.0
+      org.opencontainers.image.version="${APP_VERSION}"

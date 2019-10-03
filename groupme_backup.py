@@ -312,8 +312,8 @@ class Message:
                 elif type_ == 'autokicked_member':
                     self.add_autokicked_member(attachment['user_id'])
                 else:
-                    self.log.warning(f'Unsupported attachment type: {type_!r}')
-                    self.log.warning(json.dumps(data, indent=1, sort_keys=True))
+                    self._db.log.warning(f'Unsupported attachment type: {type_!r}')
+                    self._db.log.warning(json.dumps(data, indent=1, sort_keys=True))
 
     def save(self) -> 'Message':
         if self.find_by_id(self.id) is None:
@@ -353,37 +353,25 @@ class Message:
             'user_id': self.user_id
         }
         self._db.u(sql, params)
-        self.log.info(f'Saved message {self.id}')
+        self._db.log.info(f'Saved message {self.id}')
         return self
 
 
 class Config:
-    _database: str
+    database: pathlib.Path
     group_id: int
     log_format: str
     log_level: str
     token: str
+    version: str
 
     def __init__(self):
-        self._database = os.getenv('DATABASE')
+        self.database = pathlib.Path(os.getenv('DATABASE')).resolve()
         self.group_id = os.getenv('GROUP_ID')
         self.log_format = os.getenv('LOG_FORMAT', '%(levelname)s [%(name)s] %(message)s')
         self.log_level = os.getenv('LOG_LEVEL', 'INFO')
         self.token = os.getenv('TOKEN')
-
-    @property
-    def database(self) -> pathlib.Path:
-        return pathlib.Path(self._database).resolve()
-
-    @property
-    def version(self) -> str:
-        """Read version from Dockerfile"""
-        dockerfile = pathlib.Path(__file__).resolve().parent / 'Dockerfile'
-        with open(dockerfile) as f:
-            for line in f:
-                if 'org.opencontainers.image.version' in line:
-                    return line.strip().split('=', maxsplit=1)[1]
-        return 'unknown'
+        self.version = os.getenv('APP_VERSION')
 
 
 def main():
