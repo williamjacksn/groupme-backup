@@ -19,7 +19,7 @@ class Database(fort.SQLiteDatabase):
 
     def migrate(self):
         if self.version < 1:
-            logging.debug('Migrating to version 1')
+            self.log.debug('Migrating to version 1')
             sql = '''
                 create table emoji (
                     message_id integer,
@@ -84,7 +84,7 @@ class Database(fort.SQLiteDatabase):
             self.u(sql)
             self.add_version(1)
         if self.version < 2:
-            logging.debug('Migrating to version 2')
+            self.log.debug('Migrating to version 2')
             sql = '''
                 create table autokicked_members (
                     message_id integer,
@@ -312,8 +312,8 @@ class Message:
                 elif type_ == 'autokicked_member':
                     self.add_autokicked_member(attachment['user_id'])
                 else:
-                    logging.warning(f'Unsupported attachment type: {type_!r}')
-                    logging.warning(json.dumps(data, indent=1, sort_keys=True))
+                    self.log.warning(f'Unsupported attachment type: {type_!r}')
+                    self.log.warning(json.dumps(data, indent=1, sort_keys=True))
 
     def save(self) -> 'Message':
         if self.find_by_id(self.id) is None:
@@ -353,7 +353,7 @@ class Message:
             'user_id': self.user_id
         }
         self._db.u(sql, params)
-        logging.info(f'Saved message {self.id}')
+        self.log.info(f'Saved message {self.id}')
         return self
 
 
