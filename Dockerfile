@@ -10,7 +10,7 @@ RUN chmod +x /groupme-backup/docker-entrypoint.sh
 
 ENTRYPOINT ["/groupme-backup/docker-entrypoint.sh"]
 
-ENV APP_VERSION="2.1.0" \
+ENV APP_VERSION="2.1.1" \
     PYTHONUNBUFFERED="1" \
     USER_SPEC="1000:1000"
 
