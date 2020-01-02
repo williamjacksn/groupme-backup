@@ -2,7 +2,7 @@ version: '3'
 
 services:
   groupme-backup:
-    image: williamjackson/groupme-backup
+    image: docker.pkg.github.com/williamjacksn/groupme-backup/groupme-backup
     build: .
     environment:
       DATABASE: '/database.db'  # Full path to sqlite database file to use as a backup destination
