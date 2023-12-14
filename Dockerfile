@@ -1,4 +1,4 @@
-FROM python:3.11.7-alpine3.19
+FROM python:3.12.1-alpine3.19
 
 COPY requirements.txt /groupme-backup/requirements.txt
 
