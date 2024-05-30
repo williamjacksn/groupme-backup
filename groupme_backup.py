@@ -1,14 +1,17 @@
 import datetime
 import decimal
 import fort
+import httpx
 import json
 import logging
 import os
 import pathlib
-import requests
 import sys
 
 from typing import Dict, Optional
+
+
+__version__ = '2024.1'
 
 
 class Database(fort.SQLiteDatabase):
@@ -363,7 +366,6 @@ class Config:
     log_format: str
     log_level: str
     token: str
-    version: str
 
     def __init__(self):
         self.database = pathlib.Path(os.getenv('DATABASE')).resolve()
@@ -371,13 +373,12 @@ class Config:
         self.log_format = os.getenv('LOG_FORMAT', '%(levelname)s [%(name)s] %(message)s')
         self.log_level = os.getenv('LOG_LEVEL', 'INFO')
         self.token = os.getenv('TOKEN')
-        self.version = os.getenv('APP_VERSION')
 
 
 def main():
     config = Config()
     logging.basicConfig(format=config.log_format, level='DEBUG', stream=sys.stdout)
-    logging.debug(f'groupme-backup {config.version}')
+    logging.debug(f'groupme-backup {__version__}')
     if config.log_level != 'DEBUG':
         logging.debug(f'Changing log level to {config.log_level}')
     logging.getLogger().setLevel(config.log_level)
@@ -393,7 +394,7 @@ def main():
         logging.info(f'Looking for messages after {last_id}')
     params = {'token': config.token, 'limit': 100}
     while True:
-        data = requests.get(f'https://api.groupme.com/v3/groups/{config.group_id}/messages', params=params)
+        data = httpx.get(f'https://api.groupme.com/v3/groups/{config.group_id}/messages', params=params)
         if data.status_code not in (200,):
             logging.error(data.text)
             break

@@ -1,17 +1,18 @@
 services:
   groupme-backup:
-    image: ghcr.io/williamjacksn/groupme-backup
     build: .
-    user: 1000:1000  # UID/GID of user with permission to the database file and containing folder
     environment:
       DATABASE: '/database.db'  # Full path to sqlite database file to use as a backup destination
       GROUP_ID: 12345  # ID of the group to back up
       TOKEN: # Your GroupMe API token
+    image: ghcr.io/williamjacksn/groupme-backup
+    init: true
 
   shell:
     entrypoint:
-      - /bin/sh
+      - /bin/bash
     image: ghcr.io/williamjacksn/groupme-backup
+    init: true
     volumes:
-      - ./:/groupme-backup
-    working_dir: /groupme-backup
+      - ./:/home/python/groupme-backup
+    working_dir: /home/python/groupme-backup
