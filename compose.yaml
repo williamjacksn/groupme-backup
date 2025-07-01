@@ -14,5 +14,4 @@ services:
     image: ghcr.io/williamjacksn/groupme-backup
     init: true
     volumes:
-      - ./:/home/python/groupme-backup
-    working_dir: /home/python/groupme-backup
+      - ./:/app
