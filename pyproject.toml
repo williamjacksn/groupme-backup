@@ -8,3 +8,8 @@ dependencies = [
     "fort>=2025.0",
     "httpx>=0.28.1",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.1",
+]
