@@ -301,7 +301,9 @@ class Message:
     def from_api(self, data: dict) -> None:
         if self.find_by_id(int(data["id"])) is None:
             self.avatar_url = data["avatar_url"]
-            self.created_at = datetime.datetime.utcfromtimestamp(data["created_at"])
+            self.created_at = datetime.datetime.fromtimestamp(
+                data["created_at"], tz=datetime.UTC
+            )
             self.id = int(data["id"])
             self.name = data["name"]
             self.sender_id = data["sender_id"]
