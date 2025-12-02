@@ -1,26 +1,31 @@
 import datetime
 import decimal
-import fort
-import httpx
 import json
 import logging
 import os
 import pathlib
 import sys
+from typing import Optional
 
-from typing import Dict, Optional
-
+import fort
+import httpx
 
 __version__ = "2024.1"
 
 
 class Database(fort.SQLiteDatabase):
-    def add_version(self, version: int):
-        sql = "insert into schema_versions (schema_version, migration_date) values (:version, :timestamp)"
-        params = {"version": version, "timestamp": datetime.datetime.utcnow()}
+    def add_version(self, version: int) -> None:
+        sql = """
+            insert into schema_versions (schema_version, migration_date)
+            values (:version, :timestamp)
+        """
+        params = {
+            "version": version,
+            "timestamp": datetime.datetime.now(tz=datetime.UTC),
+        }
         self.u(sql, params)
 
-    def migrate(self):
+    def migrate(self) -> None:
         if self.version < 1:
             self.log.debug("Migrating to version 1")
             sql = """
@@ -125,35 +130,43 @@ class Database(fort.SQLiteDatabase):
 
 
 class Message:
-    def __init__(self, db: Database):
+    def __init__(self, db: Database) -> None:
         self._db = db
-        self.avatar_url: Optional[str] = None
-        self.created_at: Optional[datetime.datetime] = None
-        self.id: Optional[int] = None
-        self.name: Optional[str] = None
-        self.sender_id: Optional[str] = None
-        self.sender_type: Optional[str] = None
-        self.source_guid: Optional[str] = None
-        self.system: Optional[bool] = None
-        self.message_text: Optional[str] = None
-        self.user_id: Optional[str] = None
+        self.avatar_url: str | None = None
+        self.created_at: datetime.datetime | None = None
+        self.id: int | None = None
+        self.name: str | None = None
+        self.sender_id: str | None = None
+        self.sender_type: str | None = None
+        self.source_guid: str | None = None
+        self.system: bool | None = None
+        self.message_text: str | None = None
+        self.user_id: str | None = None
 
     def add_autokicked_member(self, user_id: str) -> None:
         if self.id is None or self.find_by_id(self.id) is None:
             return
-        sql = "select 1 from autokicked_members where message_id = :message_id and user_id = :user_id"
+        sql = """
+            select 1
+            from autokicked_members
+            where message_id = :message_id and user_id = :user_id
+        """
         params = {"message_id": self.id, "user_id": user_id}
         row = self._db.q_one(sql, params)
         if row is None:
-            sql = "insert into autokicked_members (message_id, user_id) values (:message_id, :user_id)"
+            sql = """
+                insert into autokicked_members (message_id, user_id)
+                values (:message_id, :user_id)
+            """
             self._db.u(sql, params)
 
-    def add_emoji(self, placeholder: str, pack_id: int, offset: int):
+    def add_emoji(self, placeholder: str, pack_id: int, offset: int) -> None:
         if self.id is None or self.find_by_id(self.id) is None:
             return
         sql = """
             select 1 from emoji
-            where message_id = :message_id and placeholder = :placeholder and pack_id = :pack_id and offset = :offset
+            where message_id = :message_id
+            and placeholder = :placeholder and pack_id = :pack_id and offset = :offset
         """
         params = {
             "message_id": self.id,
@@ -172,11 +185,17 @@ class Message:
     def add_event(self, event_id: str, view: str) -> None:
         if self.id is None or self.find_by_id(self.id) is None:
             return
-        sql = "select 1 from events where message_id = :message_id and event_id = :event_id and view = :view"
+        sql = """
+            select 1 from events
+            where message_id = :message_id and event_id = :event_id and view = :view
+        """
         params = {"message_id": self.id, "event_id": event_id, "view": view}
         row = self._db.q_one(sql, params)
         if row is None:
-            sql = "insert into events (message_id, event_id, view) values (:message_id, :event_id, :view)"
+            sql = """
+                insert into events (message_id, event_id, view)
+                values (:message_id, :event_id, :view)
+            """
             self._db.u(sql, params)
 
     def add_file(self, file_id: str) -> None:
@@ -208,11 +227,18 @@ class Message:
     ) -> None:
         if self.id is None or self.find_by_id(self.id) is None:
             return
-        sql = "select 1 from locations where message_id = :message_id and lat = :lat and lng = :lng and name = :name"
+        sql = """
+            select 1 from locations
+            where message_id = :message_id
+              and lat = :lat and lng = :lng and name = :name
+        """
         params = {"message_id": self.id, "lat": lat, "lng": lng, "name": name}
         row = self._db.q_one(sql, params)
         if row is None:
-            sql = "insert into locations (message_id, lat, lng, name) values (:message_id, :lat, :lng, :name)"
+            sql = """
+                insert into locations (message_id, lat, lng, name)
+                values (:message_id, :lat, :lng, :name)
+            """
             self._db.u(sql, params)
 
     def add_mention(self, user_id: int, location: int, length: int) -> None:
@@ -220,7 +246,8 @@ class Message:
             return
         sql = """
             select 1 from mentions
-            where message_id = :message_id and user_id = :user_id and location = :location and length = :length
+            where message_id = :message_id
+            and user_id = :user_id and location = :location and length = :length
         """
         params = {
             "message_id": self.id,
@@ -239,16 +266,24 @@ class Message:
     def add_video(self, preview_url: str, url: str) -> None:
         if self.id is None or self.find_by_id(self.id) is None:
             return
-        sql = "select 1 from videos where message_id = :message_id and preview_url = :preview_url and url = :url"
+        sql = """
+            select 1 from videos
+            where message_id = :message_id and preview_url = :preview_url and url = :url
+        """
         params = {"message_id": self.id, "preview_url": preview_url, "url": url}
         row = self._db.q_one(sql, params)
         if row is None:
-            sql = "insert into videos (message_id, preview_url, url) values (:message_id, :preview_url, :url)"
+            sql = """
+                insert into videos (message_id, preview_url, url)
+                values (:message_id, :preview_url, :url)
+            """
             self._db.u(sql, params)
 
     def find_by_id(self, id_: int) -> Optional["Message"]:
         sql = """
-            select avatar_url, created_at, id, name, sender_id, sender_type, source_guid, system, message_text, user_id
+            select
+                avatar_url, created_at, id, name, sender_id, sender_type, source_guid,
+                system, message_text, user_id
             from messages
             where id = :id
         """
@@ -263,7 +298,7 @@ class Message:
     def find_last_id(self) -> int:
         return self._db.q_val("select max(id) from messages")
 
-    def from_api(self, data: Dict) -> None:
+    def from_api(self, data: dict) -> None:
         if self.find_by_id(int(data["id"])) is None:
             self.avatar_url = data["avatar_url"]
             self.created_at = datetime.datetime.utcfromtimestamp(data["created_at"])
@@ -357,7 +392,7 @@ class Config:
     log_level: str
     token: str
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.database = pathlib.Path(os.getenv("DATABASE")).resolve()
         self.group_id = os.getenv("GROUP_ID")
         self.log_format = os.getenv(
@@ -367,7 +402,7 @@ class Config:
         self.token = os.getenv("TOKEN")
 
 
-def main():
+def main() -> None:
     config = Config()
     logging.basicConfig(format=config.log_format, level="DEBUG", stream=sys.stdout)
     logging.debug(f"groupme-backup {__version__}")
