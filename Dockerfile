@@ -5,14 +5,14 @@ USER python
 
 WORKDIR /app
 COPY --chown=python:python .python-version pyproject.toml uv.lock ./
-RUN /usr/local/bin/uv sync --frozen
+RUN uv sync --frozen --no-dev
 
 ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE="1" \
     PYTHONUNBUFFERED="1" \
     TZ="Etc/UTC"
 
-ENTRYPOINT ["uv", "run", "groupme_backup.py"]
+ENTRYPOINT ["uv", "run", "--no-sync", "groupme_backup.py"]
 
 LABEL org.opencontainers.image.authors="William Jackson <william@subtlecoolness.com>" \
       org.opencontainers.image.source="https://github.com/williamjacksn/groupme-backup"
