@@ -279,7 +279,7 @@ class Message:
             """
             self._db.u(sql, params)
 
-    def find_by_id(self, id_: int) -> Optional["Message"]:
+    def find_by_id(self, id_: int | None) -> Optional["Message"]:
         sql = """
             select
                 avatar_url, created_at, id, name, sender_id, sender_type, source_guid,
@@ -392,11 +392,11 @@ class Config:
     group_id: int
     log_format: str
     log_level: str
-    token: str
+    token: str | None
 
     def __init__(self) -> None:
-        self.database = pathlib.Path(os.getenv("DATABASE")).resolve()
-        self.group_id = os.getenv("GROUP_ID")
+        self.database = pathlib.Path(os.getenv("DATABASE", "")).resolve()
+        self.group_id = int(os.getenv("GROUP_ID", 0))
         self.log_format = os.getenv(
             "LOG_FORMAT", "%(levelname)s [%(name)s] %(message)s"
         )
@@ -412,7 +412,7 @@ def main() -> None:
         logging.debug(f"Changing log level to {config.log_level}")
     logging.getLogger().setLevel(config.log_level)
 
-    db = Database(config.database)
+    db = Database(str(config.database))
     db.migrate()
     forward = True
     last_id = Message(db).find_last_id()
