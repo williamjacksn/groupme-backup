@@ -427,7 +427,7 @@ def main() -> None:
             f"https://api.groupme.com/v3/groups/{config.group_id}/messages",
             params=params,
         )
-        if data.status_code not in (200,):
+        if data.status_code != 200:
             logging.error(data.text)
             break
         messages = data.json()["response"]["messages"]
