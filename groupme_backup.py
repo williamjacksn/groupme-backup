@@ -11,6 +11,7 @@ import fort
 import httpx
 
 __version__ = "2024.1"
+log = logging.getLogger(__name__)
 
 
 class Database(fort.SQLiteDatabase):
@@ -396,7 +397,7 @@ class Config:
 
     def __init__(self) -> None:
         self.database = pathlib.Path(os.getenv("DATABASE", "")).resolve()
-        self.group_id = int(os.getenv("GROUP_ID", 0))
+        self.group_id = int(os.getenv("GROUP_ID", "0"))
         self.log_format = os.getenv(
             "LOG_FORMAT", "%(levelname)s [%(name)s] %(message)s"
         )
@@ -407,9 +408,9 @@ class Config:
 def main() -> None:
     config = Config()
     logging.basicConfig(format=config.log_format, level="DEBUG", stream=sys.stdout)
-    logging.debug(f"groupme-backup {__version__}")
+    log.debug(f"groupme-backup {__version__}")
     if config.log_level != "DEBUG":
-        logging.debug(f"Changing log level to {config.log_level}")
+        log.debug(f"Changing log level to {config.log_level}")
     logging.getLogger().setLevel(config.log_level)
 
     db = Database(str(config.database))
@@ -417,10 +418,10 @@ def main() -> None:
     forward = True
     last_id = Message(db).find_last_id()
     if last_id is None:
-        logging.info("Starting at the last message and saving all previous messages")
+        log.info("Starting at the last message and saving all previous messages")
         forward = False
     else:
-        logging.info(f"Looking for messages after {last_id}")
+        log.info(f"Looking for messages after {last_id}")
     params = {"token": config.token, "limit": 100}
     while True:
         data = httpx.get(
@@ -428,7 +429,7 @@ def main() -> None:
             params=params,
         )
         if data.status_code != 200:
-            logging.error(data.text)
+            log.error(data.text)
             break
         messages = data.json()["response"]["messages"]
         if len(messages) < 1:
