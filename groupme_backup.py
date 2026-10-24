@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import decimal
 import json
 import logging
@@ -22,7 +22,7 @@ class Database(fort.SQLiteDatabase):
         """
         params = {
             "version": version,
-            "timestamp": datetime.datetime.now(tz=datetime.UTC),
+            "timestamp": dt.datetime.now(tz=dt.UTC),
         }
         self.u(sql, params)
 
@@ -134,7 +134,7 @@ class Message:
     def __init__(self, db: Database) -> None:
         self._db = db
         self.avatar_url: str | None = None
-        self.created_at: datetime.datetime | None = None
+        self.created_at: dt.datetime | None = None
         self.id: int | None = None
         self.name: str | None = None
         self.sender_id: str | None = None
@@ -302,9 +302,7 @@ class Message:
     def from_api(self, data: dict) -> None:
         if self.find_by_id(int(data["id"])) is None:
             self.avatar_url = data["avatar_url"]
-            self.created_at = datetime.datetime.fromtimestamp(
-                data["created_at"], tz=datetime.UTC
-            )
+            self.created_at = dt.datetime.fromtimestamp(data["created_at"], tz=dt.UTC)
             self.id = int(data["id"])
             self.name = data["name"]
             self.sender_id = data["sender_id"]
